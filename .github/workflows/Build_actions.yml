@@ -5,7 +5,7 @@ on:
   pull_request:
   push:
     branches:
-      - 'ksu-man'
+      - 'ksu-man' # Adjust if your branch name is different
 
 jobs:
   build_kernel:
@@ -19,67 +19,112 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          path: android_kernel_samsung_sm6150_KernelSU-Next # Checkout to a specific subdir
 
       - name: Set up build environment
         run: |
           sudo apt update
-          DEBIAN_FRONTEND=noninteractive sudo apt install -yq \
-            curl zip unzip \
-            git libssh-dev rsync libelf-dev dwarves libssl-dev \
-            linux-modules-extra-$(uname -r) build-essential
+          # Install essential build tools and libraries
+          DEBIAN_FRONTEND=noninteractive sudo apt install -y --no-install-recommends \
+            bc bison build-essential ccache curl flex g++-multilib gcc-multilib \
+            git git-lfs gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev \
+            lib32z1-dev libelf-dev liblz4-tool libncurses5 libncurses5-dev \
+            libsdl1.2-dev libssl-dev libtool libxml2 libxml2-utils lzop \
+            pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            libssh-dev dwarves python3 python-is-python3 # Added python symlink explicitly
+
+          # Git config
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Fetch ToolChain
+      - name: Fetch ToolChains and Set PATH
         run: |
-          export KERNEL_DIR="$(pwd)"
-          mkdir -p "$KERNEL_DIR/../Prebuilts"
-          git clone https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b $KERNEL_DIR/../Prebuilts/los-clang
-          git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 $KERNEL_DIR/../Prebuilts/gcc64
-          git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 $KERNEL_DIR/../Prebuilts/gcc32
-          git clone https://android.googlesource.com/platform/prebuilts/gas/linux-x86 $KERNEL_DIR/../Prebuilts/gas/linux-x86
-          git clone --depth=1 https://android.googlesource.com/platform/prebuilts/build-tools $KERNEL_DIR/../Prebuilts/build-tools
+          # Define directories relative to the workspace root
+          export WORKSPACE_DIR="$(pwd)"
+          export KERNEL_DIR="$WORKSPACE_DIR/android_kernel_samsung_sm6150_KernelSU-Next"
+          export PREBUILTS_DIR="$WORKSPACE_DIR/Prebuilts"
+          mkdir -p "$PREBUILTS_DIR"
 
+          echo "Cloning toolchains..."
+          # Clone toolchains into the Prebuilts directory
+          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b "$PREBUILTS_DIR/los-clang"
+          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 "$PREBUILTS_DIR/gcc64"
+          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 "$PREBUILTS_DIR/gcc32"
+          git clone --depth=1 https://android.googlesource.com/platform/prebuilts/build-tools "$PREBUILTS_DIR/build-tools"
+          # Note: GAS is often included within the Clang bundle or build-tools, cloning separately might be redundant
+
+          # *** IMPORTANT: Add toolchains to PATH ***
+          echo "Setting up PATH..."
+          echo "$PREBUILTS_DIR/los-clang/bin" >> $GITHUB_PATH
+          echo "$PREBUILTS_DIR/gcc64/bin" >> $GITHUB_PATH
+          echo "$PREBUILTS_DIR/gcc32/bin" >> $GITHUB_PATH
+          echo "$PREBUILTS_DIR/build-tools/linux-x86/bin" >> $GITHUB_PATH # Add build-tools bin path
+          echo "PATH is now: $PATH" # Verify PATH for debugging
+
+          # Navigate into the kernel source directory for subsequent steps
           cd "$KERNEL_DIR"
 
       - name: Fetch AnyKernel3
         run: |
+          # KERNEL_DIR should be set correctly from previous step
           export KERNEL_DIR="$(pwd)"
-          git clone --branch master https://github.com/DerGoogler/AnyKernel3-A70-KSU_Next.git $KERNEL_DIR/../AnyKernel3
-          mkdir $KERNEL_DIR/../files
+          export PARENT_DIR="$(dirname "$KERNEL_DIR")"
+          echo "Cloning AnyKernel3..."
+          git clone --depth=1 --branch master https://github.com/DerGoogler/AnyKernel3-A70-KSU_Next.git "$PARENT_DIR/AnyKernel3"
+          mkdir -p "$PARENT_DIR/files" # Create output directory for zip
 
       - name: Setup KSU
         run: |
+          # KERNEL_DIR should be the current directory
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
 
-      - name: Patch with SUSFS
+      - name: Patch with SUSFS (Optional - If needed and patch exists)
         run: |
-          set +e
-          export KERNEL_DIR="$(pwd)"
-          
-          patch -p1 < $KERNEL_DIR/50_add_susfs_in_kernel-4.14.patch || true
+          # KERNEL_DIR should be the current directory
+          if [ -f "50_add_susfs_in_kernel-4.14.patch" ]; then
+            echo "Applying SUSFS patch..."
+            patch -p1 < 50_add_susfs_in_kernel-4.14.patch || echo "Patch failed or already applied, continuing..."
+          else
+            echo "SUSFS patch file not found, skipping patch step."
+          fi
 
       - name: Build Kernel With KSU
         run: |
+          # KERNEL_DIR should be the current directory
           export KERNEL_DIR="$(pwd)"
-          source ./build_kernel.sh ${{ matrix.target }}
-          cp -r $KERNEL_DIR/../AnyKernel3/* $KERNEL_DIR/../files
+          export PARENT_DIR="$(dirname "$KERNEL_DIR")"
+          # Ensure build script is executable
+          chmod +x ./build_kernel.sh
+          # Execute build script
+          ./build_kernel.sh ${{ matrix.target }}
+          # Copy AnyKernel3 contents to the files directory for artifact/release upload
+          cp -r "$PARENT_DIR/AnyKernel3/." "$PARENT_DIR/files/" # Copy contents, not the folder itself
+
+      - name: Check for Zip File # Add this step for debugging
+        run: |
+           export PARENT_DIR="$(dirname "$(pwd)")"
+           echo "Checking for zip file in $PARENT_DIR/files..."
+           ls -l "$PARENT_DIR/files"
+           # The zip file should be named based on the build script logic, e.g., a70q_KSU-Next_*.zip
 
       - name: Publish to GitHub
-        id: release
         uses: softprops/action-gh-release@v2
         with:
-          files: /home/runner/work/android_kernel_samsung_sm6150_KernelSU-Next/files/a70*
-          name: KernelSU Next for A70
-          tag_name: ${{ github.run_number }}
+          # Use wildcard to catch the generated zip file(s)
+          files: /home/runner/work/android_kernel_samsung_sm6150_KernelSU-Next/files/*.zip
+          name: KernelSU Next for A70 (${{ matrix.target }}) - Run ${{ github.run_number }}
+          tag_name: build-${{ github.run_number }}-${{ matrix.target }} # Unique tag per build target
           body: |
-            **Release Notes - Kernel**
+            **Release Notes - Kernel (${{ matrix.target }})**
 
-            - **SUSSY Download:** https://mmrl.dev/repository/grdoglgmr/susfs4ksu
-            - **SUS Auto Mode:** Disabled
-            - **Kernel Version:** 4.14.190
-            - **Clang Version:** Clang-r416183b
+            - **SUSFS:** Enabled (Version check needed)
+            - **Kernel Version:** 4.14.190-ksu-next
+            - **Clang Version:** Clang-r416183b (LineageOS Prebuilt)
+            - **FM Radio:** Attempted enable (Iris driver as module)
 
             :rocket: *Built with love by GitHub Actions.*
+          prerelease: false # Mark as a full release, or true for pre-release
+          fail_on_unmatched_files: true # Fail if the zip isn't found
         env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Use the standard GITHUB_TOKEN
