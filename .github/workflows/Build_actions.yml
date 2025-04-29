@@ -48,30 +48,29 @@ jobs:
           export KERNEL_DIR="$WORKSPACE_DIR/android_kernel_samsung_sm6150_KernelSU-Next"
           export PREBUILTS_DIR="$WORKSPACE_DIR/Prebuilts"
           export CLANG_DIR="$PREBUILTS_DIR/los-clang" # Define Clang directory variable
-          mkdir -p "$CLANG_DIR" # Create the target directory
 
-          echo "Fetching specific Clang tag r383902b..."
-          # Navigate into the target directory
-          cd "$CLANG_DIR"
-          # Initialize an empty repository
-          git init -b main
-          # Add the remote repository
-          git remote add origin https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86
-          # Fetch only the specific tag commit with a depth of 1 (minimal history)
-          git fetch --depth=1 origin refs/tags/clang-r383902b
-          # Checkout the commit that was just fetched (will be in detached HEAD state, which is fine for building)
-          git checkout FETCH_HEAD
-          # Navigate back to the workspace root before dealing with other repositories
-          cd "$WORKSPACE_DIR"
+          echo "Fetching specific Clang tag r383902b via direct archive download..."
+          # Use curl and tar for faster Clang fetching
+          mkdir -p "$CLANG_DIR" \
+            && curl -LsS https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/0e9e7035bf8ad42437c6156e5950eab13655b26c.tar.gz \
+               | tar xz -C "$CLANG_DIR" \
+            && echo "Clang downloaded and extracted." \
+            || { echo "Clang download/extract failed!"; exit 1; } # Add error handling
+
+          # The cd "$WORKSPACE_DIR" from your snippet isn't strictly needed here
+          # as the next commands specify their directories.
 
           echo "Cloning GCC prebuilts (shallow)..."
           # Use --depth=1 for GCC repos as well, as we likely only need the latest
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 \
-            "$PREBUILTS_DIR/gcc64"
+            "$PREBUILTS_DIR/gcc64" \
+            || { echo "GCC64 clone failed!"; exit 1; }
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 \
-            "$PREBUILTS_DIR/gcc32"
-          # Use --depth=1 for build-tools
-          git clone --depth=1 https://android.googlesource.com/platform/prebuilts/build-tools "$PREBUILTS_DIR/build-tools"
+            "$PREBUILTS_DIR/gcc32" \
+            || { echo "GCC32 clone failed!"; exit 1; }
+          # Cloning build-tools might still be useful if not included elsewhere
+          git clone --depth=1 https://android.googlesource.com/platform/prebuilts/build-tools "$PREBUILTS_DIR/build-tools" \
+            || { echo "Build-tools clone failed!"; exit 1; }
 
           # *** IMPORTANT: Add toolchains to PATH ***
           echo "Setting up PATH..."
