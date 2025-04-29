@@ -1,11 +1,7 @@
-name: Build
+name: Build Test
 
 on:
-  workflow_dispatch:
-  pull_request:
-  push:
-    branches:
-      - 'ksu-man'
+  workflow_dispatch: # Use workflow_dispatch for testing
 
 jobs:
   build_kernel:
@@ -14,78 +10,85 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [a70q, a70s]
+        target: [a70q] # Test with only one target initially
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          path: android_kernel_samsung_sm6150_KernelSU-Next
 
       - name: Set up build environment
         run: |
-          sudo apt update
-          DEBIAN_FRONTEND=noninteractive sudo apt install -yq \
-            curl zip unzip \
-            git libssh-dev rsync libelf-dev dwarves libssl-dev \
-            linux-modules-extra-$(uname -r) build-essential
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # sudo apt update ... (keep this)
+          # sudo apt install ... (keep this)
+          # git config ... (keep this)
 
-      - name: Fetch ToolChain
+#      - name: Fetch ToolChains and Set PATH  # << COMMENT OUT
+#        run: |
+#          # ... (commands commented out) ...
+
+#      - name: Verify Clang Toolchain Contents # << COMMENT OUT (or keep if you want)
+#        run: |
+#          # ... (commands commented out) ...
+
+#      - name: Fetch AnyKernel3             # << COMMENT OUT
+#        run: |
+#          # ... (commands commented out) ...
+
+#      - name: Setup KSU                   # << COMMENT OUT
+#        working-directory: ./android_kernel_samsung_sm6150_KernelSU-Next
+#        run: |
+#          # ... (commands commented out) ...
+
+#      - name: Patch with SUSFS (Optional)  # << COMMENT OUT
+#        working-directory: ./android_kernel_samsung_sm6150_KernelSU-Next
+#        run: |
+#           # ... (commands commented out) ...
+
+#      - name: Build Kernel With KSU        # << COMMENT OUT
+#        working-directory: ./android_kernel_samsung_sm6150_KernelSU-Next
+#        run: |
+#          # ... (commands commented out) ...
+
+      # *** ADD THIS STEP FOR TESTING ***
+      - name: Create Dummy Artifact
         run: |
-          export KERNEL_DIR="$(pwd)"
-          mkdir -p "$KERNEL_DIR/../Prebuilts"
-          git clone https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b $KERNEL_DIR/../Prebuilts/los-clang
-          git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 $KERNEL_DIR/../Prebuilts/gcc64
-          git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 $KERNEL_DIR/../Prebuilts/gcc32
-          git clone https://android.googlesource.com/platform/prebuilts/gas/linux-x86 $KERNEL_DIR/../Prebuilts/gas/linux-x86
-          git clone --depth=1 https://android.googlesource.com/platform/prebuilts/build-tools $KERNEL_DIR/../Prebuilts/build-tools
+          export PARENT_DIR="$(pwd)" # Workspace root
+          mkdir -p "$PARENT_DIR/files"
+          # Create a dummy zip file matching the expected pattern
+          DUMMY_ZIP_NAME="${{ matrix.target }}_KSU-Next_$(date +%Y%m%d-%H%M).zip"
+          touch "$PARENT_DIR/files/$DUMMY_ZIP_NAME"
+          echo "Created dummy file: $PARENT_DIR/files/$DUMMY_ZIP_NAME"
+          ls -l "$PARENT_DIR/files"
 
-          cd "$KERNEL_DIR"
-
-      - name: Fetch AnyKernel3
+      - name: Check for Zip File # Keep this to verify dummy file creation
         run: |
-          export KERNEL_DIR="$(pwd)"
-          git clone --branch master https://github.com/DerGoogler/AnyKernel3-A70-KSU_Next.git $KERNEL_DIR/../AnyKernel3
-          mkdir $KERNEL_DIR/../files
+           export PARENT_DIR="$(pwd)" # Workspace root
+           echo "Checking for zip file in $PARENT_DIR/files..."
+           ls -l "$PARENT_DIR/files"
 
-      - name: Setup KSU
+      - name: Create Git Tag
         run: |
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
-
-      - name: Patch with SUSFS
-        run: |
-          set +e
-          export KERNEL_DIR="$(pwd)"
-          
-          patch -p1 < $KERNEL_DIR/50_add_susfs_in_kernel-4.14.patch || true
-
-      - name: Build Kernel With KSU
-        run: |
-          export KERNEL_DIR="$(pwd)"
-          source ./build_kernel.sh ${{ matrix.target }}
-          cp -r $KERNEL_DIR/../AnyKernel3/* $KERNEL_DIR/../files
+          TAG_NAME="build-${{ github.run_number }}-${{ matrix.target }}"
+          echo "Creating and pushing tag: $TAG_NAME"
+          # Need to be in the git repo directory to run git commands
+          cd ./android_kernel_samsung_sm6150_KernelSU-Next
+          git tag "$TAG_NAME"
+          # Use GITHUB_TOKEN for push authentication
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git "$TAG_NAME"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to GitHub
-        id: release
         uses: softprops/action-gh-release@v2
         with:
-          files: /home/runner/work/android_kernel_samsung_sm6150_KernelSU-Next/files/*.zip # Use wildcard to match output zip
-          name: KernelSU Next for A70 (${{ matrix.target }}) - Build ${{ github.run_id }} # Use Run ID in name
-          # Create a more unique tag name including the branch ref slug and run number/ID
-          tag_name: build-${{ matrix.target }}-${{ github.ref_slug }}-${{ github.run_number }}
+          files: /home/runner/work/android_kernel_samsung_sm6150_KernelSU-Next/files/*.zip # Path from workspace root
+          name: TEST Release (${{ matrix.target }}) - Run ${{ github.run_number }}
+          tag_name: build-${{ github.run_number }}-${{ matrix.target }}
           body: |
-            **Release Notes - Kernel (${{ matrix.target }})**
-
-            - Triggered from branch: ${{ github.ref_name }}
-            - SUSFS: Enabled (Version check needed)
-            - Kernel Version: 4.14.190-ksu-next
-            - Clang Version: Clang-r383902b (AOSP Prebuilt)
-
-            :rocket: *Built with love by GitHub Actions.*
-          prerelease: true # Consider marking test branch builds as pre-releases
+            **TEST RELEASE**
+          prerelease: true # Mark test releases as pre-releases
           fail_on_unmatched_files: true
         env:
-          # Use GITHUB_TOKEN for standard releases
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Use secrets.TOKEN only if you need specific permissions beyond standard repo write
-          # GITHUB_TOKEN: ${{ secrets.TOKEN }}
