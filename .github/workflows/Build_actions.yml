@@ -77,13 +77,25 @@ jobs:
           git clone --depth=1 --branch master https://github.com/DerGoogler/AnyKernel3-A70-KSU_Next.git "$PARENT_DIR/AnyKernel3"
           mkdir -p "$PARENT_DIR/files" # Create output directory for zip
 
-      - name: Setup KSU
-        # Add this line to set the working directory for this step
+      - name: Build Kernel With KSU
+        # *** Add this line ***
         working-directory: ./android_kernel_samsung_sm6150_KernelSU-Next
         run: |
-          # The script will now run inside the kernel source directory
-          echo "Setting up KSU in $(pwd)..." # Optional: Verify the current directory
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
+          # PARENT_DIR should be relative to the new working directory
+          export PARENT_DIR="$(dirname "$(pwd)")" # Get workspace root from kernel dir
+
+          echo "Current directory: $(pwd)" # Add for debugging
+          echo "Attempting to execute build_kernel.sh..."
+
+          # Ensure build script is executable (now relative to the working-directory)
+          chmod +x ./build_kernel.sh
+          # Execute build script (now relative to the working-directory)
+          ./build_kernel.sh ${{ matrix.target }}
+
+          # Copy AnyKernel3 contents to the files directory
+          # Use absolute path or correct relative path from kernel dir to workspace
+          echo "Copying AnyKernel3 contents from $PARENT_DIR/AnyKernel3 to $PARENT_DIR/files"
+          cp -r "$PARENT_DIR/AnyKernel3/." "$PARENT_DIR/files/"
 
       - name: Patch with SUSFS (Optional - If needed and patch exists)
         run: |
