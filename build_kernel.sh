@@ -21,7 +21,7 @@ JOBS=$(nproc --all)
 # Define Make parameters
 # Use LD=ld.lld explicitly if needed, but usually LLVM=1 handles it with PATH setup
 # Removed CROSS_COMPILE= since Clang uses CLANG_TRIPLE for aarch64
-MAKE_PARAMS="-j${JOBS} ARCH=arm64 O=out LLVM=1 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-"
+MAKE_PARAMS="-j${JOBS} ARCH=arm64 O=out LLVM=1 CC=clang LD=ld.lld LLVM_IAS=0 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-"
 # Optional: If you still face assembler issues with clang, try adding LLVM_IAS=0
 # MAKE_PARAMS="-j${JOBS} ARCH=arm64 O=out LLVM=1 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- LLVM_IAS=0"
 
