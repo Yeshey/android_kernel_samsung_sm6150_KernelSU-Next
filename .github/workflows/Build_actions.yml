@@ -47,33 +47,36 @@ jobs:
           export WORKSPACE_DIR="$(pwd)"
           export KERNEL_DIR="$WORKSPACE_DIR/android_kernel_samsung_sm6150_KernelSU-Next"
           export PREBUILTS_DIR="$WORKSPACE_DIR/Prebuilts"
-          mkdir -p "$PREBUILTS_DIR"
+          export CLANG_DIR="$PREBUILTS_DIR/los-clang" # Define Clang directory variable
+          mkdir -p "$CLANG_DIR" # Create the target directory
 
-          echo "Cloning base Clang repository..."
-          # Clone the repository without specifying a branch/tag initially
-          git clone https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
-            "$PREBUILTS_DIR/los-clang"
-
-          echo "Checking out Clang r383902b tag..."
-          # Navigate into the cloned directory
-          cd "$PREBUILTS_DIR/los-clang"
-          # Checkout the specific tag
-          git checkout tags/clang-r383902b -b temp-branch-for-tag # Checkout tag into a temporary local branch
-          # Navigate back to the workspace root before cloning the next repo
+          echo "Fetching specific Clang tag r383902b..."
+          # Navigate into the target directory
+          cd "$CLANG_DIR"
+          # Initialize an empty repository
+          git init -b main
+          # Add the remote repository
+          git remote add origin https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86
+          # Fetch only the specific tag commit with a depth of 1 (minimal history)
+          git fetch --depth=1 origin refs/tags/clang-r383902b
+          # Checkout the commit that was just fetched (will be in detached HEAD state, which is fine for building)
+          git checkout FETCH_HEAD
+          # Navigate back to the workspace root before dealing with other repositories
           cd "$WORKSPACE_DIR"
 
-          echo "Cloning GCC prebuilts..."
+          echo "Cloning GCC prebuilts (shallow)..."
+          # Use --depth=1 for GCC repos as well, as we likely only need the latest
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 \
             "$PREBUILTS_DIR/gcc64"
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 \
             "$PREBUILTS_DIR/gcc32"
-          # Cloning build-tools might still be useful if not included elsewhere
+          # Use --depth=1 for build-tools
           git clone --depth=1 https://android.googlesource.com/platform/prebuilts/build-tools "$PREBUILTS_DIR/build-tools"
-
 
           # *** IMPORTANT: Add toolchains to PATH ***
           echo "Setting up PATH..."
-          echo "$PREBUILTS_DIR/los-clang/bin" >> $GITHUB_PATH
+          # Paths remain the same as before
+          echo "$CLANG_DIR/bin" >> $GITHUB_PATH
           echo "$PREBUILTS_DIR/gcc64/bin" >> $GITHUB_PATH
           echo "$PREBUILTS_DIR/gcc32/bin" >> $GITHUB_PATH
           echo "$PREBUILTS_DIR/build-tools/linux-x86/bin" >> $GITHUB_PATH
