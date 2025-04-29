@@ -18,57 +18,32 @@ jobs:
         with:
           path: android_kernel_samsung_sm6150_KernelSU-Next
 
-      - name: Set up build environment
-        run: |
-          # sudo apt update ... (keep this)
-          # sudo apt install ... (keep this)
-          # git config ... (keep this)
+      # ... (Keep Set up build environment) ...
+      # ... (Keep Fetch ToolChains and Set PATH, but comment out run: block) ...
+      # ... (Keep Verify Clang Contents, but comment out run: block) ...
+      # ... (Keep Fetch AnyKernel3, but comment out run: block) ...
+      # ... (Keep Setup KSU, but comment out run: block) ...
+      # ... (Keep Patch with SUSFS, but comment out run: block) ...
+      # ... (Keep Build Kernel With KSU, but comment out run: block) ...
 
-#      - name: Fetch ToolChains and Set PATH  # << COMMENT OUT
-#        run: |
-#          # ... (commands commented out) ...
-
-#      - name: Verify Clang Toolchain Contents # << COMMENT OUT (or keep if you want)
-#        run: |
-#          # ... (commands commented out) ...
-
-#      - name: Fetch AnyKernel3             # << COMMENT OUT
-#        run: |
-#          # ... (commands commented out) ...
-
-#      - name: Setup KSU                   # << COMMENT OUT
-#        working-directory: ./android_kernel_samsung_sm6150_KernelSU-Next
-#        run: |
-#          # ... (commands commented out) ...
-
-#      - name: Patch with SUSFS (Optional)  # << COMMENT OUT
-#        working-directory: ./android_kernel_samsung_sm6150_KernelSU-Next
-#        run: |
-#           # ... (commands commented out) ...
-
-#      - name: Build Kernel With KSU        # << COMMENT OUT
-#        working-directory: ./android_kernel_samsung_sm6150_KernelSU-Next
-#        run: |
-#          # ... (commands commented out) ...
-
-      # *** ADD THIS STEP FOR TESTING ***
+      # *** UPDATED DUMMY ARTIFACT STEP FOR TESTING ***
       - name: Create Dummy Artifact
         run: |
-          export PARENT_DIR="$(pwd)" # Workspace root
-          mkdir -p "$PARENT_DIR/files"
-          # Create a dummy zip file matching the expected pattern
-          DUMMY_ZIP_NAME="${{ matrix.target }}_KSU-Next_$(date +%Y%m%d-%H%M).zip"
-          touch "$PARENT_DIR/files/$DUMMY_ZIP_NAME"
-          echo "Created dummy file: $PARENT_DIR/files/$DUMMY_ZIP_NAME"
-          ls -l "$PARENT_DIR/files"
+          export FILES_DIR="/home/runner/work/android_kernel_samsung_sm6150_KernelSU-Next/files"
+          mkdir -p "$FILES_DIR"
+          # Create a dummy zip file explicitly starting with 'a70' (using matrix target)
+          DUMMY_FILE_NAME="${{ matrix.target }}_dummy_test_$(date +%Y%m%d).zip"
+          touch "$FILES_DIR/$DUMMY_FILE_NAME"
+          echo "Created dummy file: $FILES_DIR/$DUMMY_FILE_NAME"
+          ls -l "$FILES_DIR"
 
-      - name: Check for Zip File # Keep this to verify dummy file creation
+      - name: Check for Zip File # Keep this
         run: |
-           export PARENT_DIR="$(pwd)" # Workspace root
-           echo "Checking for zip file in $PARENT_DIR/files..."
-           ls -l "$PARENT_DIR/files"
+           export FILES_DIR="/home/runner/work/android_kernel_samsung_sm6150_KernelSU-Next/files"
+           echo "Checking for zip file in $FILES_DIR..."
+           ls -l "$FILES_DIR"
 
-      - name: Create Git Tag
+      - name: Create Git Tag # Keep this step
         run: |
           TAG_NAME="build-${{ github.run_number }}-${{ matrix.target }}"
           echo "Creating and pushing tag: $TAG_NAME"
@@ -80,10 +55,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish to GitHub
+      - name: Publish to GitHub # Use the old working pattern
         uses: softprops/action-gh-release@v2
         with:
-          files: /home/runner/work/android_kernel_samsung_sm6150_KernelSU-Next/files/*.zip # Path from workspace root
+          # *** REVERT TO THE a70* PATTERN ***
+          files: /home/runner/work/android_kernel_samsung_sm6150_KernelSU-Next/files/a70*
           name: TEST Release (${{ matrix.target }}) - Run ${{ github.run_number }}
           tag_name: build-${{ github.run_number }}-${{ matrix.target }}
           body: |
