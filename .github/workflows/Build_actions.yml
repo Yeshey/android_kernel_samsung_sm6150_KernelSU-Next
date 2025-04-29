@@ -50,19 +50,21 @@ jobs:
           mkdir -p "$PREBUILTS_DIR"
 
           echo "Cloning toolchains..."
-          # Clone toolchains into the Prebuilts directory
-          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b "$PREBUILTS_DIR/los-clang"
+          # --- CHANGE THIS LINE ---
+          # Clone Clang r383902b (Clang 11 based) instead of r416183b
+          git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 --branch clang-r383902b "$PREBUILTS_DIR/los-clang"
+          # --- END CHANGE ---
+
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 "$PREBUILTS_DIR/gcc64"
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 "$PREBUILTS_DIR/gcc32"
           git clone --depth=1 https://android.googlesource.com/platform/prebuilts/build-tools "$PREBUILTS_DIR/build-tools"
-          # Note: GAS is often included within the Clang bundle or build-tools, cloning separately might be redundant
 
           # *** IMPORTANT: Add toolchains to PATH ***
           echo "Setting up PATH..."
           echo "$PREBUILTS_DIR/los-clang/bin" >> $GITHUB_PATH
           echo "$PREBUILTS_DIR/gcc64/bin" >> $GITHUB_PATH
           echo "$PREBUILTS_DIR/gcc32/bin" >> $GITHUB_PATH
-          echo "$PREBUILTS_DIR/build-tools/linux-x86/bin" >> $GITHUB_PATH # Add build-tools bin path
+          echo "$PREBUILTS_DIR/build-tools/linux-x86/bin" >> $GITHUB_PATH
           echo "PATH is now: $PATH" # Verify PATH for debugging
 
           # Navigate into the kernel source directory for subsequent steps
