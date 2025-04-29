@@ -43,36 +43,46 @@ jobs:
 
       - name: Fetch ToolChains and Set PATH
         run: |
+          # Define directories relative to the workspace root
           export WORKSPACE_DIR="$(pwd)"
           export KERNEL_DIR="$WORKSPACE_DIR/android_kernel_samsung_sm6150_KernelSU-Next"
           export PREBUILTS_DIR="$WORKSPACE_DIR/Prebuilts"
           mkdir -p "$PREBUILTS_DIR"
 
-          echo "Cloning Clang r383902b tag..."
+          echo "Cloning base Clang repository..."
+          # Clone the repository without specifying a branch/tag initially
           git clone https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
             "$PREBUILTS_DIR/los-clang"
+
+          echo "Checking out Clang r383902b tag..."
+          # Navigate into the cloned directory
           cd "$PREBUILTS_DIR/los-clang"
-          git checkout tags/clang-r383902b
+          # Checkout the specific tag
+          git checkout tags/clang-r383902b -b temp-branch-for-tag # Checkout tag into a temporary local branch
+          # Navigate back to the workspace root before cloning the next repo
           cd "$WORKSPACE_DIR"
 
-          echo "Cloning GCC prebuilts (for GNU as)..."
+          echo "Cloning GCC prebuilts..."
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 \
             "$PREBUILTS_DIR/gcc64"
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 \
             "$PREBUILTS_DIR/gcc32"
+          # Cloning build-tools might still be useful if not included elsewhere
+          git clone --depth=1 https://android.googlesource.com/platform/prebuilts/build-tools "$PREBUILTS_DIR/build-tools"
 
+
+          # *** IMPORTANT: Add toolchains to PATH ***
           echo "Setting up PATH..."
           echo "$PREBUILTS_DIR/los-clang/bin" >> $GITHUB_PATH
-          echo "$PREBUILTS_DIR/gcc64/bin"   >> $GITHUB_PATH
-          echo "$PREBUILTS_DIR/gcc32/bin"   >> $GITHUB_PATH
+          echo "$PREBUILTS_DIR/gcc64/bin" >> $GITHUB_PATH
+          echo "$PREBUILTS_DIR/gcc32/bin" >> $GITHUB_PATH
+          echo "$PREBUILTS_DIR/build-tools/linux-x86/bin" >> $GITHUB_PATH
+          echo "PATH is now: $PATH"
 
-          echo "Disabling LLVM integrated assembler (use GNU as)..."
-          echo "LLVM_IAS=0" >> $GITHUB_ENV
+          echo "Disabling LLVM integrated assembler (will use GNU as)..."
+          echo "LLVM_IAS=0" >> $GITHUB_ENV # Set for subsequent steps
 
-          # If you instead want Clang 12:
-          # git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
-          #   --branch clang-r412851 "$PREBUILTS_DIR/los-clang"
-
+          # Navigate into the kernel source directory for subsequent steps
           cd "$KERNEL_DIR"
 
 
