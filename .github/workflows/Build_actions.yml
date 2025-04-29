@@ -69,17 +69,23 @@ jobs:
         id: release
         uses: softprops/action-gh-release@v2
         with:
-          files: /home/runner/work/android_kernel_samsung_sm6150_KernelSU-Next/files/a70*
-          name: KernelSU Next for A70
-          tag_name: ${{ github.run_number }}
+          files: /home/runner/work/android_kernel_samsung_sm6150_KernelSU-Next/files/*.zip # Use wildcard to match output zip
+          name: KernelSU Next for A70 (${{ matrix.target }}) - Build ${{ github.run_id }} # Use Run ID in name
+          # Create a more unique tag name including the branch ref slug and run number/ID
+          tag_name: build-${{ matrix.target }}-${{ github.ref_slug }}-${{ github.run_number }}
           body: |
-            **Release Notes - Kernel**
+            **Release Notes - Kernel (${{ matrix.target }})**
 
-            - **SUSSY Download:** https://mmrl.dev/repository/grdoglgmr/susfs4ksu
-            - **SUS Auto Mode:** Disabled
-            - **Kernel Version:** 4.14.190
-            - **Clang Version:** Clang-r416183b
+            - Triggered from branch: ${{ github.ref_name }}
+            - SUSFS: Enabled (Version check needed)
+            - Kernel Version: 4.14.190-ksu-next
+            - Clang Version: Clang-r383902b (AOSP Prebuilt)
 
             :rocket: *Built with love by GitHub Actions.*
+          prerelease: true # Consider marking test branch builds as pre-releases
+          fail_on_unmatched_files: true
         env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+          # Use GITHUB_TOKEN for standard releases
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use secrets.TOKEN only if you need specific permissions beyond standard repo write
+          # GITHUB_TOKEN: ${{ secrets.TOKEN }}
