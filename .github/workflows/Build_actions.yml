@@ -27,13 +27,15 @@ jobs:
       # ... (Keep Build Kernel With KSU, but comment out run: block) ...
 
       # *** UPDATED DUMMY ARTIFACT STEP FOR TESTING ***
+      
       - name: Create Dummy Artifact
         run: |
           export FILES_DIR="/home/runner/work/android_kernel_samsung_sm6150_KernelSU-Next/files"
           mkdir -p "$FILES_DIR"
-          # Create a dummy zip file explicitly starting with 'a70' (using matrix target)
+          # Create a dummy file name explicitly starting with 'a70' (using matrix target)
           DUMMY_FILE_NAME="${{ matrix.target }}_dummy_test_$(date +%Y%m%d).zip"
-          touch "$FILES_DIR/$DUMMY_FILE_NAME"
+          # *** Add some content to the dummy file ***
+          echo "This is a dummy file for testing the release process." > "$FILES_DIR/$DUMMY_FILE_NAME"
           echo "Created dummy file: $FILES_DIR/$DUMMY_FILE_NAME"
           ls -l "$FILES_DIR"
 
