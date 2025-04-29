@@ -87,6 +87,19 @@ jobs:
           # Navigate into the kernel source directory for subsequent steps
           cd "$KERNEL_DIR"
 
+      - name: Verify Clang Toolchain Contents
+        run: |
+          export WORKSPACE_DIR="$(pwd)"
+          export PREBUILTS_DIR="$WORKSPACE_DIR/Prebuilts"
+          export CLANG_DIR="$PREBUILTS_DIR/los-clang"
+          echo "Listing contents of $CLANG_DIR/bin:"
+          ls -l "$CLANG_DIR/bin"
+          echo "--------------------------------------"
+          echo "Checking specifically for ld.lld:"
+          ls -l "$CLANG_DIR/bin/ld.lld" || echo ">>> ld.lld not found directly"
+          echo "--------------------------------------"
+          echo "Checking specifically for lld:"
+          ls -l "$CLANG_DIR/bin/lld" || echo ">>> lld not found directly"
 
       - name: Fetch AnyKernel3
         run: |
