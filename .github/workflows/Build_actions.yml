@@ -78,8 +78,11 @@ jobs:
           mkdir -p "$PARENT_DIR/files" # Create output directory for zip
 
       - name: Setup KSU
+        # Add this line to set the working directory for this step
+        working-directory: ./android_kernel_samsung_sm6150_KernelSU-Next
         run: |
-          # KERNEL_DIR should be the current directory
+          # The script will now run inside the kernel source directory
+          echo "Setting up KSU in $(pwd)..." # Optional: Verify the current directory
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
 
       - name: Patch with SUSFS (Optional - If needed and patch exists)
